@@ -2,18 +2,243 @@
 <html>
     <head>
         <title>Products Grid</title>
+        <link rel="stylesheet" href="bootstap.min.css">
+        <link rel="stylesheet" href="style.css">
+        <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+        <script src="https://unpkg.com/react@16/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16/umd/react-dom.production.min.js" crossorigin></script>
     </head>
     <body>
         <header>
             <h1>Products Grid</h1>
 
-            <p>Here you're sure to find a bargain on some of the finest ascii available to purchase. Be sure to peruse our selection of ascii faces in an exciting range of sizes and prices.</p>
+            <p>Here you're sure to find a bargain on some of the finest ascii <br> available to purchase. Be sure to peruse our selection <br> of ascii faces in an exciting range of sizes and prices.</p>
 
             <p>But first, a word from our sponsors:</p> <script>document.write('<img class="ad" src="/ads/?r=' + Math.floor(Math.random()*1000) + '"/>');</script>
         </header>
 
-        <section class="products">
-            ... products go here ...
-        </section>
+
+        <div id="root"></div>
+        <script type="text/babel">
+            const initialState = {
+                itemList: null
+            };
+            const ApiContext = React.createContext();
+            class App extends React.Component {
+                state = initialState
+                componentDidMount = () => {
+                    if (this.state.itemList == null) {
+                        fetch('/api/products?_page=1&_limit=60')
+                        .then((response) => response.json())
+                        .then((data) =>{ 
+                            console.log(data)
+                            this.setState({itemList:data})
+                        })
+                        .catch((error) => {
+                            console.log(error)
+                        })
+                    }
+                };
+                setlist = (typex, page) => {
+                    if (typex == null) {
+                        fetch(`/api/products?_page=${page}&_limit=60`)
+                        .then((response) => response.json())
+                        .then((data) =>{ 
+                            console.log(data)
+                            this.setState({itemList:data})
+                        })
+                        .catch((error) => {
+                            console.log(error)
+                        })
+                    }else{
+                        fetch(`/api/products?_page=${page}&_limit=60?&_sort=${typex}`)
+                        .then((response) => response.json())
+                        .then((data) =>{ 
+                            console.log(data)
+                            this.setState({itemList:data})
+                        })
+                        .catch((error) => {
+                            console.log(error)
+                        })
+                    }
+                }
+                render() {
+                    return(
+                        <ApiContext.Provider value={{list:this.state.itemList, setlist:this.setlist}}>
+                            <ViewList />
+                        </ApiContext.Provider>
+                    )   
+                }
+            }
+
+            const ViewList = () => {
+                const {list, setlist} = React.useContext(ApiContext)
+                const [listing, setlisting] = React.useState([]);
+                const [fetchData, setfetchData] = React.useState(false);
+                const [limit, setlimit] = React.useState(1)
+                const [stopscroll, setstopscroll] = React.useState(false)
+                const [page, setpage] = React.useState(1)
+                const [type, settype] = React.useState(null)
+                const [randomNumber, setrandomNumber] = React.useState(Math.floor(Math.random()*1000))
+
+                React.useEffect(() => {
+                    if (list) {
+                        let x = list;
+                        x = x.slice(0,20)
+                        setlisting(x)
+                    }
+                }, [list])
+
+                React.useEffect(() => {
+                    if (!fetchData) return;
+                    console.log(listing)
+                    let x = Math.floor(Math.random()*1000)
+                    if (x != randomNumber) {
+                        setrandomNumber(x)
+                    }else{
+                        setrandomNumber(Math.floor(Math.random()*1000))
+                    }
+                    fetchMoreListItems(20);
+                }, [fetchData]);
+
+                React.useEffect(() => {
+                    window.addEventListener('scroll', handleScroll);
+                    return () => window.removeEventListener('scroll', handleScroll);
+                }, []);
+
+                const handleScroll = () => {
+                    if (window.innerHeight + document.documentElement.scrollTop >= 100 + document.documentElement.offsetHeight || fetchData){ //set top 100px
+                        setfetchData(true);
+                    }
+                }
+                const fetchMoreListItems = (q) => {
+                    setTimeout(() => {
+                        console.log(limit)
+                        let l = listing.length;
+                        let x = list;
+                        let y = q 
+                        let z = limit * 20
+                        x = x.slice(z,z + 20)
+                        let ads = [{
+                            random:randomNumber
+                        }]
+                        if (x.length == 0){
+                            setstopscroll(true)
+                        }else{
+                            setlisting(prevState => [...prevState,...ads,...x]);
+                            setfetchData(false);
+                            setlimit((x) => x+1)
+                        };
+                        
+                    }, 1000);
+                }
+                React.useEffect(() => {
+                    setlisting([])
+                    setlist(type, page);
+                }, [page])
+
+                const clickType = (typex) =>{
+                    let type = typex;
+                    settype(type)
+                    setlisting([])
+                    setlist(type, page);
+                }
+
+                return(
+                    <div id="getScroll" className="get-list" style={{background:'#ffffff',bottom:'30px',position:'relative',top:'100px',height:'100%',padding:'10px 10px', paddingBottom:'60px'}}>
+                        <div className="container">
+                            <div className="row">
+                                <div className="col-12 col-sm-12 col-md-12">
+                                    <div style={{float:'left', marginBottom:'10px'}}>
+                                        <div className="form-group">
+                                            <select  id="selectSort" onChange={(e)=>clickType(e.target.value)}>
+                                                <option value={null}>Select Sort</option>
+                                                <option value={'size'}>Sort Size</option>
+                                                <option value={'price'}>Sort Price</option>
+                                                <option value={'date'}>Sort Date</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div style={{float:'right', marginBottom:'10px'}}>
+                                        <ul className="pagination">
+                                            {
+                                                Array.apply(null, Array(9)).map((v,i) => {
+                                                    let x = i + 1
+                                                    return(
+                                                        <li key={i} className={page == x ? 'active page-item':'page-item'}>
+                                                            <a className="page-link" onClick={()=>setpage(x)}>
+                                                            {x}
+                                                            </a>
+                                                        </li>
+                                                    )
+                                                })
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+                                {   
+                                    listing.map((v,i) => {
+                                        let size = `${v.size}px`;
+                                        let cents = v.price / 100
+                                        cents = `$ ${cents.toFixed(2)}`
+                                        let finalDate = null
+                                        let oldDate = new Date(v.date);
+                                        let today = new Date()
+                                        let weekAgo = new Date()
+                                        let week = today.getDate() - 7 ;
+                                        weekAgo.setDate(week)
+                                    
+                                        if (oldDate.getTime() > weekAgo.getTime() && oldDate.getTime() < today.getTime() ) {
+                                            let diff = ( today.getTime() - oldDate.getTime() ) / (1000 * 3600 * 24);
+                                            diff = Math.round(diff)
+                                            finalDate = `${diff} days ago`
+                                        }else{
+                                            let day = oldDate.getDate();
+                                            let month = oldDate.getMonth() + 1;
+                                            let year = oldDate.getFullYear();
+
+                                            finalDate = `${day}/${month}/${year}`
+                                        }
+
+                                        
+
+                                        return(
+                                                <div className="col-6 col-sm-6 col-md-3" key={i} style={{cursor:'pointer'}} >
+                                                {
+                                                        
+                                                    i % 21 == 20 ?
+                                                        <React.Fragment>
+                                                            <div className="card" style={{height:'200px',margin:'10px 0px'}} >
+                                                                <div className="card-body" style={{padding:'10px'}}>
+                                                                    <img className="card-img-top" width="100%" height="150px" src={`http://localhost:3001/ads/?r=${v.random}.jpg`} alt="Item Image" />
+                                                                    <p className="card-text" style={{position:"absolute",bottom:'20px',color:'#E01A1A',fontSize:'14px', fontWeight:'bold'}}>This is Ads</p>
+                                                                </div>
+                                                            </div>
+                                                        </React.Fragment>  
+                                                    :
+                                                        <div className="card" style={{height:'200px',margin:'10px 0px'}} >
+                                                            <div className="card-body" style={{padding:'10px'}}>
+                                                                <h5 className="card-title" style={{fontSize:size,lineHeight:'3',textAlign:'center',letterSpacing:'0',color:'#4d4d4d', fontWeight:'bold'}}>{v.face}</h5>
+                                                                <p className="card-text" style={{position:"absolute",bottom:'20px',color:'#E01A1A',fontSize:'14px', fontWeight:'bold'}}>Size: {size}</p>
+                                                                <p className="card-text" style={{position:"absolute",bottom:'3px',color:'#E01A1A',fontSize:'14px', fontWeight:'bold'}}>Price: {cents}</p>
+                                                                <p className="card-text" style={{position:"absolute",bottom:'0',color:'#E01A1A',fontSize:'14px', fontWeight:'bold'}}>Date: {finalDate}</p>
+                                                            </div>
+                                                        </div> 
+                                                        
+                                                }
+                                                </div>
+                                        )
+                                    })
+                                }
+                                { stopscroll == false && fetchData && 'Loading....' }
+                                {listing.length == 0 && 'Loading...'}
+                            </div>                                        
+                        </div>
+                    </div>
+                )
+            }
+
+            ReactDOM.render(<App />, document.getElementById('root'))
+        </script>
     </body>
 </html>
